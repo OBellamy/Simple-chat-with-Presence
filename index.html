@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Ably Chat</title>
+  </head>
+  <body>
+    <h2>Ably Chat</h2>
+    <div id="messages"></div>
+    <input type="text" id="messageInput" placeholder="Type a message..." />
+    <button id="sendBtn">Send</button>
+
+    <script src="https://cdn.ably.io/lib/ably.min-1.js"></script>
+    <script>
+      const clientId = "User-" + Math.floor(Math.random() * 1000);
+      const ably = new Ably.Realtime({
+        key: "MY ABLY API KEY",
+        clientId,
+      });
+
+      const channel = ably.channels.get("chat");
+      const messagesDiv = document.getElementById("messages");
+      const input = document.getElementById("messageInput");
+      const sendBtn = document.getElementById("sendBtn");
+
+      sendBtn.onclick = () => {
+        const message = input.value;
+        if (message) {
+          channel.publish("message", `${clientId}: ${message}`);
+          input.value = "";
+        }
+      };
+
+      channel.subscribe("message", (msg) => {
+        const messageEl = document.createElement("div");
+        messageEl.textContent = msg.data;
+        messagesDiv.appendChild(messageEl);
+      });
+
+      ably.connection.once("connected", () => {
+        channel.presence.enter("online");
+      });
+
+      const presenceEl = document.createElement("div");
+      presenceEl.style.marginTop = "20px";
+      presenceEl.innerHTML =
+        '<strong>Online users:</strong><ul id="userList"></ul>';
+      document.body.appendChild(presenceEl);
+      const userListEl = document.getElementById("userList");
+
+      function updateUserList(members) {
+        userListEl.innerHTML = "";
+        members.forEach((member) => {
+          const li = document.createElement("li");
+          li.textContent = member.clientId;
+          userListEl.appendChild(li);
+        });
+      }
+
+      channel.presence.subscribe(() => {
+        channel.presence.get((err, members) => {
+          if (!err) updateUserList(members);
+        });
+      });
+    </script>
+  </body>
+</html>
